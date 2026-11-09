@@ -1,6 +1,8 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpErrorResponse } from '@angular/common/http';
+import { finalize } from 'rxjs';
+import { AuthService, JwtLoginResponse } from './auth.service';
 
 @Component({
   imports: [CommonModule],
@@ -10,6 +12,33 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 })
 export class App implements OnInit {
   private readonly http = inject(HttpClient);
+  protected readonly auth = inject(AuthService);
+  protected readonly email = signal('');
+  protected readonly password = signal('');
+  protected readonly loginError = signal('');
+  protected readonly loginBusy = signal(false);
+  protected readonly mfaStatus = signal('');
+  protected login() {
+    if (!this.email().trim() || !this.password()) { this.loginError.set('Ingresa correo y contraseña.'); return; }
+    this.loginBusy.set(true); this.loginError.set('');
+    this.auth.login(this.email().trim(), this.password()).pipe(finalize(() => this.loginBusy.set(false))).subscribe({
+      next: (result: JwtLoginResponse) => {
+        this.password.set('');
+        if (this.auth.acceptLogin(result)) {
+          this.mfaStatus.set('');
+          this.cargarTipos(); this.buscarDocumentos();
+        } else if (result.setup || result.challenge) {
+          this.mfaStatus.set('La cuenta requiere verificación MFA. El proveedor debe habilitar el flujo de confirmación.');
+        } else {
+          this.loginError.set(result.tokens?.message || 'No fue posible completar el inicio de sesión.');
+        }
+      },
+      error: (error: HttpErrorResponse) => {
+        this.password.set('');
+        this.loginError.set(error.error?.message || 'No fue posible iniciar sesión.');
+      }
+    });
+  }
   protected readonly seccion = signal<'ventas' | 'compras'>('ventas');
   protected readonly vista = signal<'documentos' | 'carga'>('documentos');
   protected readonly archivo = signal<File | null>(null);
@@ -28,8 +57,7 @@ export class App implements OnInit {
   private readonly api = 'http://localhost:5000/api';
 
   ngOnInit() {
-    this.cargarTipos();
-    this.buscarDocumentos();
+    if (this.auth.isAuthenticated()) { this.cargarTipos(); this.buscarDocumentos(); }
   }
 
   navegar(seccion: 'ventas' | 'compras', vista: 'documentos' | 'carga') {
