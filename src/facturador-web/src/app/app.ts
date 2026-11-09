@@ -1,0 +1,86 @@
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { HttpClient, HttpParams } from '@angular/common/http';
+
+@Component({
+  imports: [CommonModule],
+  selector: 'app-root',
+  styleUrl: './app.scss',
+  templateUrl: './app.html',
+})
+export class App implements OnInit {
+  private readonly http = inject(HttpClient);
+  protected readonly seccion = signal<'ventas' | 'compras'>('ventas');
+  protected readonly vista = signal<'documentos' | 'carga'>('documentos');
+  protected readonly archivo = signal<File | null>(null);
+  protected readonly cargaId = signal<string | null>(null);
+  protected readonly mensaje = signal('Selecciona un archivo para validar su estructura.');
+  protected readonly errores = signal<string[]>([]);
+  protected readonly procesando = signal(false);
+  protected readonly fechaInicio = signal('2026-11-01');
+  protected readonly fechaFin = signal('2026-11-09');
+  protected readonly serie = signal(''); protected readonly numero = signal(''); protected readonly centroCosto = signal('');
+  protected readonly tipos = signal<{idDocumento:number; nombre:string}[]>([]);
+  protected readonly tiposSeleccionados = signal<number[]>([]);
+  protected readonly documentos = signal<any[]>([]); protected readonly totalDocumentos = signal(0);
+  protected readonly pagina = signal(1); protected readonly tamanoPagina = signal(25);
+  protected readonly columnaExpandida = signal<string | null>(null);
+  private readonly api = 'http://localhost:5000/api';
+
+  ngOnInit() {
+    this.cargarTipos();
+    this.buscarDocumentos();
+  }
+
+  navegar(seccion: 'ventas' | 'compras', vista: 'documentos' | 'carga') {
+    this.seccion.set(seccion);
+    this.vista.set(vista);
+    this.archivo.set(null); this.cargaId.set(null); this.errores.set([]);
+    this.mensaje.set('Selecciona un archivo para validar su estructura.');
+    if (seccion === 'ventas' && vista === 'documentos') { this.cargarTipos(); this.buscarDocumentos(); }
+  }
+
+  etiquetaArea() { return this.seccion() === 'ventas' ? 'Ventas' : 'Compras'; }
+  actualizarTexto(campo: 'fechaInicio'|'fechaFin'|'serie'|'numero'|'centroCosto', event: Event) { (this[campo] as any).set((event.target as HTMLInputElement).value); }
+  cambiarTipos(event: Event) { this.tiposSeleccionados.set(Array.from((event.target as HTMLSelectElement).selectedOptions).map(x => Number(x.value))); }
+  limpiarFiltros() { this.serie.set(''); this.numero.set(''); this.centroCosto.set(''); this.tiposSeleccionados.set([]); this.buscarDocumentos(true); }
+  alternarColumna(columna: string) { this.columnaExpandida.update(actual => actual === columna ? null : columna); }
+  textoResumido(valor: string | null | undefined, limite = 20) { if (!valor) return '—'; return valor.length > limite ? `${valor.slice(0, limite)}…` : valor; }
+  cargarTipos() { let p = new HttpParams().set('fechaInicio', this.fechaInicio()).set('fechaFin', this.fechaFin()); this.http.get<{idDocumento:number; nombre:string}[]>(`${this.api}/ventas/tipos-documento`, {params:p}).subscribe({next:r=>this.tipos.set(r), error:()=>this.tipos.set([])}); }
+  totalPaginas() { return Math.max(1, Math.ceil(this.totalDocumentos() / this.tamanoPagina())); }
+  buscarDocumentos(reiniciar = false) { if (reiniciar) this.pagina.set(1); let p = new HttpParams().set('fechaInicio',this.fechaInicio()).set('fechaFin',this.fechaFin()).set('pagina',String(this.pagina())).set('tamanoPagina',String(this.tamanoPagina())); if(this.serie()) p=p.set('serie',this.serie()); if(this.numero()) p=p.set('numero',this.numero()); if(this.centroCosto()) p=p.set('centroCosto',this.centroCosto()); this.tiposSeleccionados().forEach(x=>p=p.append('tiposDocumento',x)); this.http.get<any>(`${this.api}/ventas/documentos`,{params:p}).subscribe({next:r=>{this.documentos.set(r.items);this.totalDocumentos.set(r.total);this.pagina.set(r.pagina)},error:()=>{this.documentos.set([]);this.totalDocumentos.set(0)}}); }
+  cambiarPagina(delta: number) { const destino = Math.min(this.totalPaginas(), Math.max(1, this.pagina() + delta)); if (destino !== this.pagina()) { this.pagina.set(destino); this.buscarDocumentos(); } }
+  cambiarTamano(event: Event) { this.tamanoPagina.set(Number((event.target as HTMLSelectElement).value)); this.buscarDocumentos(true); }
+
+  seleccionarArchivo(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.archivo.set(input.files?.[0] ?? null);
+    this.cargaId.set(null); this.errores.set([]);
+    this.mensaje.set(this.archivo() ? `Archivo seleccionado: ${this.archivo()!.name}` : 'Selecciona un archivo para validar su estructura.');
+  }
+
+  validar() {
+    const archivo = this.archivo(); if (!archivo) return;
+    const data = new FormData(); data.append('archivo', archivo); this.procesando.set(true);
+    this.http.post<{ cargaId: string; registrosValidos: number; errores: string[] }>(`${this.api}/cargas/validar`, data).subscribe({
+      next: resultado => { this.cargaId.set(resultado.cargaId || null); this.errores.set(resultado.errores); this.mensaje.set(resultado.errores.length ? 'Se encontraron errores de estructura.' : `${resultado.registrosValidos} documento(s) validado(s).`); this.procesando.set(false); },
+      error: () => { this.mensaje.set('No fue posible validar el archivo. Verifica que la API esté activa.'); this.procesando.set(false); }
+    });
+  }
+
+  procesar() {
+    const id = this.cargaId(); if (!id) return; this.procesando.set(true);
+    this.http.post<{ insertados: number; duplicados: number; mensaje: string }>(`${this.api}/cargas/${id}/procesar`, {}).subscribe({
+      next: resultado => { this.mensaje.set(`${resultado.mensaje} Insertados: ${resultado.insertados}. Duplicados: ${resultado.duplicados}.`); this.procesando.set(false); },
+      error: () => { this.mensaje.set('La carga no pudo procesarse. Revisa la conexión configurada en la API.'); this.procesando.set(false); }
+    });
+  }
+
+  ejecutarProcedimiento() {
+    this.procesando.set(true);
+    this.http.post<{ mensaje: string }>(`${this.api}/cargas/ejecutar-procedimiento`, {}).subscribe({
+      next: resultado => { this.mensaje.set(resultado.mensaje); this.procesando.set(false); },
+      error: () => { this.mensaje.set('El procedimiento no pudo ejecutarse. Revisa el resultado de la API.'); this.procesando.set(false); }
+    });
+  }
+}

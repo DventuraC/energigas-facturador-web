@@ -1,0 +1,9 @@
+node_modules/
+.angular/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+.vscode/*.user
+Thumbs.db
