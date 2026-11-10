@@ -36,7 +36,8 @@
           <div class="file-controls"><label class="file-input"><span>{{ archivo() ? 'Reemplazar archivo' : 'Subir archivo' }}</span><input #archivoInput type="file" accept=".xlsx" (change)="seleccionarArchivo($event)"></label>@if (archivo()) {<button type="button" class="text-button" (click)="eliminarArchivo(archivoInput)">Eliminar</button>}</div>
         </div>
 
-        <div class="stages" aria-label="Etapas de la carga masiva">
+        <div class="upload-layout">
+        <div class="stage-stack"><div class="stages" aria-label="Etapas de la carga masiva">
           <article class="stage" [class.ready]="etapas().validar === 'lista'" [class.success]="etapas().validar === 'correcta'" [class.failed]="etapas().validar === 'error'">
             <div class="stage-number">@if (etapas().validar === 'correcta') {✓} @else if (etapas().validar === 'error') {×} @else {1}</div><div><p class="stage-title">Etapa 1 · Validar archivo</p><p>{{ mensajesEtapa().validar }}</p></div><button type="button" (click)="validar()" [disabled]="!archivo() || procesando() || etapas().validar === 'correcta'">{{ procesando() && etapas().validar === 'lista' ? 'Validando...' : 'Validar' }}</button>
           </article>
@@ -48,8 +49,9 @@
           </article>
         </div>
 
-        @if (errores().length) {<ul class="errors">@for (error of errores(); track error) {<li>{{ error }}</li>}</ul>}
-        <div class="requirements"><h3>Formato requerido</h3><p>Usa la hoja <strong>cargaMasiva</strong>. Las columnas deben estar en este orden, desde la columna 1:</p><ol class="columns-required">@for (columna of columnasRequeridas; track $index) {<li><b>{{ $index + 1 }}</b>{{ columna }}</li>}</ol></div>
+        @if (errores().length) {<ul class="errors">@for (error of errores(); track error) {<li>{{ error }}</li>}</ul>}</div>
+        <div class="requirements"><h3>Formato requerido</h3><p>Hoja <strong>cargaMasiva</strong>. Respeta este orden desde la columna 1.</p><ol class="columns-required">@for (columna of columnasRequeridas; track columna.nombre) {<li><span class="column-number">{{ $index + 1 }}</span><span><b>{{ columna.nombre }}</b><small>{{ columna.formato }} · {{ columna.requerido ? 'Obligatorio' : 'Opcional' }}</small></span></li>}</ol></div>
+        </div>
       </section>
     }
   </main>

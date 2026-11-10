@@ -55,9 +55,16 @@ export class App implements OnInit {
     validar: 'Carga un archivo .xlsx para iniciar.', auxiliares: 'Pendiente de validar el archivo.', carga: 'Pendiente de cargar auxiliares.'
   });
   protected readonly columnasRequeridas = [
-    'fecha', 'fechav', 'tipodocumento', 'serie', 'numero', 'motivonota', 'ruc', 'moneda', 'observacion',
-    'subtotal', 'impuesto', 'total', 'serie (referencia)', 'numero (referencia)', 'iditem', 'cantidad',
-    'precio', 'subtotal (ítem)', 'ccosto'
+    { nombre: 'fecha', formato: 'Fecha', requerido: true }, { nombre: 'fechav', formato: 'Fecha', requerido: false },
+    { nombre: 'tipodocumento', formato: 'Entero', requerido: true }, { nombre: 'serie', formato: 'Varchar', requerido: true },
+    { nombre: 'numero', formato: 'Entero', requerido: true }, { nombre: 'motivonota', formato: 'Entero', requerido: false },
+    { nombre: 'ruc', formato: 'Varchar', requerido: false }, { nombre: 'moneda', formato: 'Entero', requerido: false },
+    { nombre: 'observacion', formato: 'Varchar', requerido: false }, { nombre: 'subtotal', formato: 'Decimal', requerido: false },
+    { nombre: 'impuesto', formato: 'Decimal', requerido: false }, { nombre: 'total', formato: 'Decimal', requerido: false },
+    { nombre: 'serie (referencia)', formato: 'Varchar', requerido: false }, { nombre: 'numero (referencia)', formato: 'Entero', requerido: false },
+    { nombre: 'iditem', formato: 'Entero largo', requerido: true }, { nombre: 'cantidad', formato: 'Decimal', requerido: false },
+    { nombre: 'precio', formato: 'Decimal', requerido: false }, { nombre: 'subtotal (ítem)', formato: 'Decimal', requerido: false },
+    { nombre: 'ccosto', formato: 'Entero', requerido: false }
   ];
   protected readonly fechaInicio = signal('2026-11-01');
   protected readonly fechaFin = signal('2026-11-09');
