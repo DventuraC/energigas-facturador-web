@@ -49,6 +49,7 @@ export class App implements OnInit {
       }
     });
   }
+  protected readonly sidebarCollapsed = signal(false);
   protected readonly seccion = signal<'ventas' | 'compras'>('ventas');
   protected readonly vista = signal<'documentos' | 'carga'>('documentos');
   protected readonly archivo = signal<File | null>(null);
