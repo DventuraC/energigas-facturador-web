@@ -10,6 +10,7 @@ type DocumentoCargaEstado = {
   motivoNota: number | null; ruc: string | null; moneda: number | null; observacion: string | null;
   subtotal: number | null; impuesto: number | null; total: number | null; estado: string; detalle: string | null;
 };
+type DetalleVenta = { idItem: string | null; cantidad: number | null; precio: number | null; importe: number | null; idCentroCosto: number | null; producto: string | null; centroCosto: string | null };
 
 @Component({
   imports: [CommonModule],
@@ -80,6 +81,9 @@ export class App implements OnInit {
   protected readonly documentos = signal<any[]>([]); protected readonly totalDocumentos = signal(0);
   protected readonly pagina = signal(1); protected readonly tamanoPagina = signal(25);
   protected readonly columnaExpandida = signal<string | null>(null);
+  protected readonly detalleDocumentoOp = signal<number | null>(null);
+  protected readonly detalleVentas = signal<DetalleVenta[]>([]);
+  protected readonly detalleCargando = signal(false);
   private readonly api = 'http://localhost:5000/api';
   private tipoInicializado = false;
 
@@ -99,6 +103,12 @@ export class App implements OnInit {
   cambiarTipo(event: Event) { const valor = (event.target as HTMLSelectElement).value; this.tipoSeleccionado.set(valor ? Number(valor) : null); }
   limpiarFiltros() { this.serie.set(''); this.numero.set(''); this.clienteRuc.set(''); this.tipoSeleccionado.set(this.tipoFactura()?.idDocumento ?? null); this.buscarDocumentos(true); }
   alternarColumna(columna: string) { this.columnaExpandida.update(actual => actual === columna ? null : columna); }
+  alternarDetalle(doc: any) {
+    if (this.detalleDocumentoOp() === doc.op) { this.detalleDocumentoOp.set(null); this.detalleVentas.set([]); return; }
+    this.detalleDocumentoOp.set(doc.op); this.detalleVentas.set([]); this.detalleCargando.set(true);
+    const params = new HttpParams().set('notaCredito', String(doc.origen === 'Nota de crédito'));
+    this.http.get<DetalleVenta[]>(`${this.api}/ventas/documentos/${doc.op}/detalle`, { params }).pipe(finalize(() => this.detalleCargando.set(false))).subscribe({ next: r => this.detalleVentas.set(r), error: () => this.detalleVentas.set([]) });
+  }
   textoResumido(valor: string | null | undefined, limite = 20) { if (!valor) return '—'; return valor.length > limite ? `${valor.slice(0, limite)}…` : valor; }
   tipoFactura() { return this.tipos().find(x => x.nombre.toLowerCase() === 'factura (ns-venta)'); }
   cargarTipos() { let p = new HttpParams().set('fechaInicio', this.fechaInicio()).set('fechaFin', this.fechaFin()); this.http.get<{idDocumento:number; nombre:string}[]>(`${this.api}/ventas/tipos-documento`, {params:p}).subscribe({next:r=>{ this.tipos.set(r); if (!this.tipoInicializado) { this.tipoSeleccionado.set(this.tipoFactura()?.idDocumento ?? null); this.tipoInicializado = true; } this.buscarDocumentos(true); }, error:()=>{this.tipos.set([]); this.buscarDocumentos(true);}}); }
