@@ -21,7 +21,7 @@ type DetalleVenta = { idItem: string | null; cantidad: number | null; precio: nu
 })
 export class App implements OnInit {
   private readonly http = inject(HttpClient);
-  private readonly apiConfig = inject(ApiConfigService);
+  protected readonly apiConfig = inject(ApiConfigService);
   protected readonly auth = inject(AuthService);
   protected readonly email = signal('');
   protected readonly password = signal('');
