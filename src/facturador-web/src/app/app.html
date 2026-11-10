@@ -52,6 +52,9 @@
         @if (errores().length) {<ul class="errors">@for (error of errores(); track error) {<li>{{ error }}</li>}</ul>}</div>
         <div class="requirements"><h3>Formato requerido</h3><p>Hoja <strong>cargaMasiva</strong>. Respeta este orden desde la columna 1.</p><ol class="columns-required">@for (columna of columnasRequeridas; track columna.nombre) {<li><span class="column-number">{{ $index + 1 }}</span><span><b>{{ columna.nombre }}</b><small>{{ columna.formato }} · {{ columna.requerido ? 'Obligatorio' : 'Opcional' }}</small></span></li>}</ol></div>
         </div>
+        @if (documentosCarga().length) {
+          <section class="load-results"><div class="result-head"><div><p class="eyebrow">DETALLE DEL ARCHIVO</p><h3>Estado de documentos</h3></div><span>{{ documentosCarga().length }} documento(s)</span></div><div class="table-wrap"><table class="load-table"><thead><tr><th>#</th><th>Fecha</th><th>Tipo documento</th><th>Serie-Número</th><th>Estado</th><th>Detalle</th></tr></thead><tbody>@for (documento of documentosCarga(); track documento.orden) {<tr><td>{{ documento.orden }}</td><td>{{ documento.fecha | date:'dd/MM/yyyy' }}</td><td>{{ documento.tipoDocumento }}</td><td>{{ documento.serie }}-{{ documento.numero }}</td><td><span class="load-status" [class.inserted]="documento.estado === 'Insertado'" [class.omitted]="documento.estado === 'Omitido'">{{ documento.estado }}</span></td><td>{{ documento.detalle || '—' }}</td></tr>}</tbody></table></div></section>
+        }
       </section>
     }
   </main>
