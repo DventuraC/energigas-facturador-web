@@ -99,3 +99,12 @@ main > header { justify-content:center; text-align:center; }.sidebar-foot { widt
 .action-icon:hover .action-tooltip,.action-icon:focus-visible .action-tooltip { display:block; }
 .documents .table-wrap { overflow:auto; }
 @media(max-width:760px) { .shell.sidebar-collapsed { grid-template-columns:1fr; }.shell.sidebar-collapsed aside { padding:10px; }.shell.sidebar-collapsed .nav-group { display:flex; flex-wrap:wrap; }.shell.sidebar-collapsed .sidebar-top { flex-direction:row; } }
+
+/* Estado de consulta y formato fijo de fechas en filtros. */
+.filters-fieldset { border:0; padding:0; margin:0; min-width:0; }
+.filters-fieldset:disabled { opacity:.7; }
+.filters input[placeholder="dd/MM/yyyy"] { font-variant-numeric:tabular-nums; }
+.query-loading { display:flex; align-items:center; gap:10px; padding:12px 14px; margin:10px 0; background:#eff8f4; border:1px solid #cce7d9; border-radius:8px; color:#14644d; font-size:.84rem; font-weight:700; }
+.loading-spinner { display:inline-block; flex:none; width:15px; height:15px; border:2px solid #a8d5c2; border-top-color:#16705a; border-radius:50%; animation:query-spin .7s linear infinite; vertical-align:middle; }
+@keyframes query-spin { to { transform:rotate(360deg); } }
+.query-error { margin:10px 0; color:#a3312d; font-size:.84rem; }
