@@ -1,6 +1,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { ApiConfigService } from './api-config.service';
 
 export interface JwtLoginResponse {
   status: string;
@@ -12,13 +13,14 @@ export interface JwtLoginResponse {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly apiConfig = inject(ApiConfigService);
   private readonly accessToken = signal<string | null>(null);
   readonly userEmail = signal('');
   readonly isAuthenticated = computed(() => !!this.accessToken());
   token() { return this.accessToken(); }
   login(email: string, password: string) {
     this.userEmail.set(email);
-    return this.http.post<JwtLoginResponse>('http://localhost:5000/api/auth/login', { email, password });
+    return this.http.post<JwtLoginResponse>(this.apiConfig.url('auth/login'), { email, password });
   }
   acceptLogin(result: JwtLoginResponse): boolean {
     if (!result.tokens?.success || !result.tokens.accessToken || result.setup || result.challenge) return false;
