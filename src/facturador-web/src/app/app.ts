@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClient, HttpParams, HttpErrorResponse } from '@angular/common/http';
 import { finalize } from 'rxjs';
 import { AuthService, JwtLoginResponse } from './auth.service';
+import { ApiConfigService } from './api-config.service';
 
 type EstadoEtapa = 'bloqueada' | 'lista' | 'correcta' | 'error';
 type DocumentoCargaEstado = {
@@ -20,6 +21,7 @@ type DetalleVenta = { idItem: string | null; cantidad: number | null; precio: nu
 })
 export class App implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly apiConfig = inject(ApiConfigService);
   protected readonly auth = inject(AuthService);
   protected readonly email = signal('');
   protected readonly password = signal('');
@@ -84,7 +86,7 @@ export class App implements OnInit {
   protected readonly detalleDocumentoOp = signal<number | null>(null);
   protected readonly detalleVentas = signal<DetalleVenta[]>([]);
   protected readonly detalleCargando = signal(false);
-  private readonly api = 'http://localhost:5000/api';
+  private get api(): string { return this.apiConfig.apiBaseUrl; }
   private tipoInicializado = false;
 
   ngOnInit() {
