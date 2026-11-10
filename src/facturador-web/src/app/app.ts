@@ -151,8 +151,8 @@ export class App implements OnInit {
 
   procesar() {
     const id = this.cargaId(); if (!id) return; this.procesando.set(true);
-    this.http.post<{ insertados: number; duplicados: number; mensaje: string; documentos: DocumentoCargaEstado[] }>(`${this.api}/cargas/${id}/procesar`, {}).subscribe({
-      next: resultado => { this.documentosCarga.set(resultado.documentos ?? []); this.etapas.update(x => ({ ...x, auxiliares: 'correcta', carga: 'lista' })); this.mensajesEtapa.update(x => ({ ...x, auxiliares: `${resultado.insertados} insertado(s) · ${resultado.duplicados} omitido(s) por duplicado.`, carga: 'Listo para ejecutar la carga masiva.' })); this.mensaje.set(`${resultado.mensaje} Insertados: ${resultado.insertados}. Duplicados: ${resultado.duplicados}.`); this.procesando.set(false); },
+    this.http.post<{ insertados: number; reemplazados: number; duplicados: number; mensaje: string; documentos: DocumentoCargaEstado[] }>(`${this.api}/cargas/${id}/procesar`, {}).subscribe({
+      next: resultado => { this.documentosCarga.set(resultado.documentos ?? []); this.etapas.update(x => ({ ...x, auxiliares: 'correcta', carga: 'lista' })); this.mensajesEtapa.update(x => ({ ...x, auxiliares: `${resultado.insertados} insertado(s) · ${resultado.reemplazados} reemplazado(s) · ${resultado.duplicados} omitido(s).`, carga: 'Listo para ejecutar la carga masiva.' })); this.mensaje.set(`${resultado.mensaje} Insertados: ${resultado.insertados}. Reemplazados: ${resultado.reemplazados}. Duplicados: ${resultado.duplicados}.`); this.procesando.set(false); },
       error: () => { this.etapas.update(x => ({ ...x, auxiliares: 'error' })); this.mensajesEtapa.update(x => ({ ...x, auxiliares: 'No se pudieron cargar los auxiliares.' })); this.mensaje.set('La carga no pudo procesarse. Revisa la conexión configurada en la API.'); this.procesando.set(false); }
     });
   }
