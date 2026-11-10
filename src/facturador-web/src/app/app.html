@@ -38,19 +38,17 @@
           <fieldset class="filters-fieldset" [disabled]="consultando()"><div class="filters compact-filters"><label>Inicio<input type="text" inputmode="numeric" placeholder="dd/MM/yyyy" maxlength="10" [value]="fechaInicioTexto()" (change)="actualizarFecha('fechaInicio',$event); cargarTipos()" [disabled]="consultando()" aria-label="Fecha inicio dd/MM/yyyy"></label><label>Fin<input type="text" inputmode="numeric" placeholder="dd/MM/yyyy" maxlength="10" [value]="fechaFinTexto()" (change)="actualizarFecha('fechaFin',$event); cargarTipos()" [disabled]="consultando()" aria-label="Fecha fin dd/MM/yyyy"></label><label>Serie<input [value]="serie()" (input)="actualizarTexto('serie',$event)"></label><label>Número<input type="number" [value]="numero()" (input)="actualizarTexto('numero',$event)"></label><label>RUC o razón social<input [value]="clienteRuc()" (input)="actualizarTexto('clienteRuc',$event)" placeholder="RUC o cliente"></label><label>Tipo de documento<select [value]="tipoSeleccionado() ?? ''" (change)="cambiarTipo($event)"><option value="">Todos los tipos</option>@for (tipo of tipos(); track tipo.idDocumento) {<option [value]="tipo.idDocumento">{{ tipo.nombre }}</option>}</select></label></div></fieldset>
           <div class="filter-actions"><button type="button" (click)="buscarDocumentos(true)" [disabled]="consultando()">@if (consultando()) { <span class="loading-spinner" aria-hidden="true"></span> Consultando... } @else { Filtrar }</button><button type="button" class="secondary" (click)="limpiarFiltros()" [disabled]="consultando()">Restablecer</button></div>
           @if (errorConsulta()) { <p class="query-error" role="alert">{{ errorConsulta() }}</p> }
-          @if (errorAnulacion()) { <p class="query-error" role="alert">{{ errorAnulacion() }}</p> }
-          @if (mensajeAnulacion()) { <p role="status" aria-live="polite">{{ mensajeAnulacion() }}</p> }
           @if (consultando()) { <div class="query-loading" role="status" aria-live="polite"><span class="loading-spinner" aria-hidden="true"></span> Cargando resultados, espera un momento...</div> }
           <div class="table-wrap"><table><thead><tr><th class="actions-header">Acciones</th><th>Fecha</th><th>Tipo</th><th>Serie-Número</th><th class="expandable-header" (click)="alternarColumna('cliente')">Cliente <span>{{ columnaExpandida() === 'cliente' ? '−' : '+' }}</span></th><th>Subtotal</th><th>IGV</th><th>Percepción</th><th>Total</th><th>Estado</th><th class="expandable-header" (click)="alternarColumna('referencia')">Referencia NC/ND <span>{{ columnaExpandida() === 'referencia' ? '−' : '+' }}</span></th><th class="expandable-header" (click)="alternarColumna('observaciones')">Observaciones <span>{{ columnaExpandida() === 'observaciones' ? '−' : '+' }}</span></th></tr></thead><tbody>
             @for (doc of documentos(); track doc.op) {<tr><td class="actions-cell"><div class="row-actions">
-  <button type="button" class="action-icon" (click)="alternarDetalle(doc)" [attr.title]="detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle'" [attr.aria-label]="detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle'" [attr.aria-expanded]="detalleDocumentoOp() === doc.op">
+  <button type="button" class="action-icon" (click)="alternarDetalle(doc)" [attr.title]="detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle'" [attr.aria-label]="detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle'" [attr.aria-expanded]="detalleDocumentoOp() === doc.op" (mouseenter)="mostrarTooltip($event, detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle')" (mouseleave)="ocultarTooltip()" (focus)="mostrarTooltip($event, detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle')" (blur)="ocultarTooltip()">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
     <span class="action-tooltip">{{ detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle' }}</span>
   </button>
-  <button type="button" class="action-icon pending" disabled title="Enviar a facturador (próximamente)" aria-label="Enviar a facturador, próximamente">
+  <button type="button" class="action-icon pending" disabled title="Enviar a facturador (próximamente)" (mouseenter)="mostrarTooltip($event, 'Enviar a facturador · Próximamente')" (mouseleave)="ocultarTooltip()" aria-label="Enviar a facturador, próximamente">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 16-8-5 16-3-7-8-1Z"/><path d="m12 13 8-9"/></svg><span class="action-tooltip">Enviar a facturador · Próximamente</span>
   </button>
-  <button type="button" class="action-icon danger" (click)="anularDocumento(doc)" [disabled]="doc.estado !== 'Válido' || !doc.docSunat || anulandoOp() !== null" [title]="!doc.docSunat ? 'DocSunat no disponible' : 'Anular documento'" aria-label="Anular documento">
+  <button type="button" class="action-icon danger" (click)="solicitarAnulacion(doc)" [disabled]="doc.estado !== 'Válido' || !doc.docSunat || anulandoOp() !== null" [title]="!doc.docSunat ? 'DocSunat no disponible' : 'Anular documento'" aria-label="Anular documento" (mouseenter)="mostrarTooltip($event, 'Anular documento')" (mouseleave)="ocultarTooltip()" (focus)="mostrarTooltip($event, 'Anular documento')" (blur)="ocultarTooltip()">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg><span class="action-tooltip">{{ anulandoOp() === doc.op ? 'Anulando...' : 'Anular' }}</span>
   </button>
 </div></td><td>{{ doc.fecha | date:'dd/MM/yyyy' }}</td><td>{{ doc.documento }}</td><td>{{ doc.serie }}-{{ doc.numero }}</td><td class="cliente" [class.expanded]="columnaExpandida() === 'cliente'"><b>{{ doc.idAgenda || '—' }}</b><small>{{ doc.agendaNombre || 'Sin nombre' }}</small></td><td>{{ doc.subtotal | number:'1.2-2' }}</td><td>{{ doc.igv | number:'1.2-2' }}</td><td>{{ doc.percepcion | number:'1.2-2' }}</td><td><b>{{ doc.total | number:'1.2-2' }}</b></td><td><span class="state" [class.valid]="doc.estado === 'Válido'">{{ doc.estado }}</span></td><td class="referencia" [class.expanded]="columnaExpandida() === 'referencia'">@if (doc.fechaReferencia) {<span class="reference">{{ doc.fechaReferencia | date:'dd/MM/yyyy' }}<br>{{ doc.documentoReferencia }} · {{ doc.serieReferencia }}-{{ doc.numeroReferencia }}</span>} @else {<span>—</span>}</td><td class="observaciones" [class.expanded]="columnaExpandida() === 'observaciones'">{{ columnaExpandida() === 'observaciones' ? (doc.observaciones || '—') : textoResumido(doc.observaciones) }}</td></tr>@if (detalleDocumentoOp() === doc.op) {<tr class="sale-detail-row"><td colspan="12">
@@ -97,4 +95,35 @@
   </main>
 </div>
 
+}
+
+
+@if (tooltipAccion()) {
+  <div class="floating-action-tooltip" role="tooltip" [style.left.px]="tooltipAccion()!.x" [style.top.px]="tooltipAccion()!.y">{{ tooltipAccion()!.texto }}</div>
+}
+@if (documentoPendiente()) {
+  <div class="void-overlay" role="presentation">
+    <section class="void-modal" role="alertdialog" aria-modal="true" aria-labelledby="void-confirm-title" aria-describedby="void-confirm-desc">
+      <button type="button" class="void-close" aria-label="Cerrar" (click)="cerrarConfirmacion()" [disabled]="anulandoOp() !== null">×</button>
+      <div class="void-symbol warning">!</div>
+      <p class="void-eyebrow">CONFIRMACIÓN REQUERIDA</p>
+      <h2 id="void-confirm-title">¿Anular documento?</h2>
+      <p id="void-confirm-desc">Estás por anular <strong>{{ documentoPendiente()!.serie }}-{{ documentoPendiente()!.numero }}</strong>. Una vez aceptada la anulación, <strong>no existe reversión.</strong></p>
+      <div class="void-actions">
+        <button type="button" class="void-cancel" (click)="cerrarConfirmacion()" [disabled]="anulandoOp() !== null">Cancelar</button>
+        <button type="button" class="void-confirm" (click)="confirmarAnulacion()" [disabled]="anulandoOp() !== null">@if (anulandoOp() !== null) { <span class="loading-spinner"></span> Anulando... } @else { Sí, anular documento }</button>
+      </div>
+    </section>
+  </div>
+}
+@if (modalResultado()) {
+  <div class="void-overlay">
+    <section class="void-modal result" role="alertdialog" aria-modal="true" aria-labelledby="void-result-title" aria-describedby="void-result-desc">
+      <button type="button" class="void-close" aria-label="Cerrar mensaje" title="Cerrar" (click)="cerrarResultado()">×</button>
+      <div class="void-symbol" [class.success]="modalResultado()!.ok" [class.failure]="!modalResultado()!.ok">{{ modalResultado()!.ok ? '✓' : '!' }}</div>
+      <p class="void-eyebrow">RESULTADO DE ANULACIÓN</p>
+      <h2 id="void-result-title">{{ modalResultado()!.ok ? 'Documento anulado' : 'No se pudo anular' }}</h2>
+      <p id="void-result-desc">{{ modalResultado()!.mensaje }}</p>
+    </section>
+  </div>
 }
