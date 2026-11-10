@@ -5,7 +5,11 @@ import { finalize } from 'rxjs';
 import { AuthService, JwtLoginResponse } from './auth.service';
 
 type EstadoEtapa = 'bloqueada' | 'lista' | 'correcta' | 'error';
-type DocumentoCargaEstado = { orden: number; fecha: string; tipoDocumento: number; serie: string; numero: number; estado: string; detalle: string | null };
+type DocumentoCargaEstado = {
+  orden: number; fecha: string; fechaVencimiento: string | null; tipoDocumento: number; serie: string; numero: number;
+  motivoNota: number | null; ruc: string | null; moneda: number | null; observacion: string | null;
+  subtotal: number | null; impuesto: number | null; total: number | null; estado: string; detalle: string | null;
+};
 
 @Component({
   imports: [CommonModule],
