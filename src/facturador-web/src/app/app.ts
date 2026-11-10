@@ -76,6 +76,22 @@ export class App implements OnInit {
     { nombre: 'precio', formato: 'Decimal', requerido: false }, { nombre: 'subtotal (ítem)', formato: 'Decimal', requerido: false },
     { nombre: 'ccosto', formato: 'Entero', requerido: false }
   ];
+  protected readonly anulandoOp = signal<number | null>(null);
+  protected readonly mensajeAnulacion = signal('');
+  protected readonly errorAnulacion = signal('');
+  protected anularDocumento(doc: any) {
+    if (this.anulandoOp() !== null || doc.estado !== 'Válido' || !doc.docSunat) return;
+    if (!window.confirm(`¿Está seguro de anular el documento ${doc.serie}-${doc.numero}? Una vez aceptada la anulación, no existe reversión.`)) return;
+    this.anulandoOp.set(doc.op);
+    this.mensajeAnulacion.set('');
+    this.errorAnulacion.set('');
+    this.http.post<{ok:boolean; mensaje:string}>(`${this.api}/ventas/anular`, { origen: doc.origen, op: doc.op })
+      .pipe(finalize(() => this.anulandoOp.set(null)))
+      .subscribe({
+        next: r => { if (r.ok) { this.mensajeAnulacion.set(r.mensaje); this.buscarDocumentos(); } else this.errorAnulacion.set(r.mensaje); },
+        error: (e: HttpErrorResponse) => this.errorAnulacion.set(e.error?.mensaje || 'Error al anular el documento - No se pudo contactar al servicio')
+      });
+  }
   protected readonly consultando = signal(false);
   protected readonly errorConsulta = signal('');
   protected readonly fechaInicioTexto = signal('01/11/2026');
