@@ -77,19 +77,40 @@ export class App implements OnInit {
     { nombre: 'ccosto', formato: 'Entero', requerido: false }
   ];
   protected readonly anulandoOp = signal<number | null>(null);
-  protected readonly mensajeAnulacion = signal('');
-  protected readonly errorAnulacion = signal('');
-  protected anularDocumento(doc: any) {
+  protected readonly documentoPendiente = signal<any | null>(null);
+  protected readonly modalResultado = signal<{ok: boolean; mensaje: string} | null>(null);
+  protected readonly tooltipAccion = signal<{texto: string; x: number; y: number} | null>(null);
+
+  protected mostrarTooltip(event: MouseEvent | FocusEvent, texto: string) {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.tooltipAccion.set({ texto, x: Math.min(Math.max(rect.left + rect.width / 2, 90), window.innerWidth - 90), y: rect.top });
+  }
+  protected ocultarTooltip() { this.tooltipAccion.set(null); }
+  protected solicitarAnulacion(doc: any) {
     if (this.anulandoOp() !== null || doc.estado !== 'Válido' || !doc.docSunat) return;
-    if (!window.confirm(`¿Está seguro de anular el documento ${doc.serie}-${doc.numero}? Una vez aceptada la anulación, no existe reversión.`)) return;
+    this.ocultarTooltip();
+    this.documentoPendiente.set(doc);
+  }
+  protected cerrarConfirmacion() {
+    if (this.anulandoOp() === null) this.documentoPendiente.set(null);
+  }
+  protected cerrarResultado() { this.modalResultado.set(null); }
+  protected confirmarAnulacion() {
+    const doc = this.documentoPendiente();
+    if (!doc || this.anulandoOp() !== null) return;
     this.anulandoOp.set(doc.op);
-    this.mensajeAnulacion.set('');
-    this.errorAnulacion.set('');
     this.http.post<{ok:boolean; mensaje:string}>(`${this.api}/ventas/anular`, { origen: doc.origen, op: doc.op })
       .pipe(finalize(() => this.anulandoOp.set(null)))
       .subscribe({
-        next: r => { if (r.ok) { this.mensajeAnulacion.set(r.mensaje); this.buscarDocumentos(); } else this.errorAnulacion.set(r.mensaje); },
-        error: (e: HttpErrorResponse) => this.errorAnulacion.set(e.error?.mensaje || 'Error al anular el documento - No se pudo contactar al servicio')
+        next: r => {
+          this.documentoPendiente.set(null);
+          this.modalResultado.set({ok: r.ok, mensaje: r.mensaje});
+          if (r.ok) this.buscarDocumentos();
+        },
+        error: (e: HttpErrorResponse) => {
+          this.documentoPendiente.set(null);
+          this.modalResultado.set({ok: false, mensaje: e.error?.mensaje || 'Error al anular el documento - No se pudo contactar al servicio'});
+        }
       });
   }
   protected readonly consultando = signal(false);
