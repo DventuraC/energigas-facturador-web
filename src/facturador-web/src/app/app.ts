@@ -76,6 +76,10 @@ export class App implements OnInit {
     { nombre: 'precio', formato: 'Decimal', requerido: false }, { nombre: 'subtotal (ítem)', formato: 'Decimal', requerido: false },
     { nombre: 'ccosto', formato: 'Entero', requerido: false }
   ];
+  protected readonly consultando = signal(false);
+  protected readonly errorConsulta = signal('');
+  protected readonly fechaInicioTexto = signal('01/11/2026');
+  protected readonly fechaFinTexto = signal('09/11/2026');
   protected readonly fechaInicio = signal('2026-11-01');
   protected readonly fechaFin = signal('2026-11-09');
   protected readonly serie = signal(''); protected readonly numero = signal(''); protected readonly clienteRuc = signal('');
@@ -102,6 +106,28 @@ export class App implements OnInit {
 
   etiquetaArea() { return this.seccion() === 'ventas' ? 'Ventas' : 'Compras'; }
   actualizarTexto(campo: 'fechaInicio'|'fechaFin'|'serie'|'numero'|'clienteRuc', event: Event) { (this[campo] as any).set((event.target as HTMLInputElement).value); }
+  actualizarFecha(campo: 'fechaInicio' | 'fechaFin', event: Event) {
+    const valor = (event.target as HTMLInputElement).value.trim();
+    const texto = campo === 'fechaInicio' ? this.fechaInicioTexto : this.fechaFinTexto;
+    texto.set(valor);
+    const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(valor);
+    if (!match) return;
+    const [, dd, mm, yyyy] = match;
+    const fecha = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+    if (fecha.getFullYear() !== Number(yyyy) || fecha.getMonth() !== Number(mm) - 1 || fecha.getDate() !== Number(dd)) return;
+    this[campo].set(`${yyyy}-${mm}-${dd}`);
+  }
+  private fechasValidas(): boolean {
+    const iso = (texto: string) => {
+      const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(texto);
+      if (!match) return null;
+      const [, dd, mm, yyyy] = match;
+      const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+      return d.getFullYear() === Number(yyyy) && d.getMonth() === Number(mm) - 1 && d.getDate() === Number(dd) ? `${yyyy}-${mm}-${dd}` : null;
+    };
+    const inicio = iso(this.fechaInicioTexto()), fin = iso(this.fechaFinTexto());
+    return !!inicio && !!fin && inicio <= fin;
+  }
   cambiarTipo(event: Event) { const valor = (event.target as HTMLSelectElement).value; this.tipoSeleccionado.set(valor ? Number(valor) : null); }
   limpiarFiltros() { this.serie.set(''); this.numero.set(''); this.clienteRuc.set(''); this.tipoSeleccionado.set(this.tipoFactura()?.idDocumento ?? null); this.buscarDocumentos(true); }
   alternarColumna(columna: string) { this.columnaExpandida.update(actual => actual === columna ? null : columna); }
@@ -113,9 +139,47 @@ export class App implements OnInit {
   }
   textoResumido(valor: string | null | undefined, limite = 20) { if (!valor) return '—'; return valor.length > limite ? `${valor.slice(0, limite)}…` : valor; }
   tipoFactura() { return this.tipos().find(x => x.nombre.toLowerCase() === 'factura (ns-venta)'); }
-  cargarTipos() { let p = new HttpParams().set('fechaInicio', this.fechaInicio()).set('fechaFin', this.fechaFin()); this.http.get<{idDocumento:number; nombre:string}[]>(`${this.api}/ventas/tipos-documento`, {params:p}).subscribe({next:r=>{ this.tipos.set(r); if (!this.tipoInicializado) { this.tipoSeleccionado.set(this.tipoFactura()?.idDocumento ?? null); this.tipoInicializado = true; } this.buscarDocumentos(true); }, error:()=>{this.tipos.set([]); this.buscarDocumentos(true);}}); }
+  cargarTipos() {
+    if (this.consultando()) return;
+    if (!this.fechasValidas()) { this.errorConsulta.set('Ingresa fechas válidas en formato dd/MM/yyyy (inicio no posterior al fin).'); return; }
+    this.consultando.set(true);
+    this.errorConsulta.set('');
+    const params = new HttpParams().set('fechaInicio', this.fechaInicio()).set('fechaFin', this.fechaFin());
+    this.http.get<{idDocumento:number; nombre:string}[]>(`${this.api}/ventas/tipos-documento`, { params })
+      .pipe(finalize(() => this.consultando.set(false)))
+      .subscribe({
+        next: tipos => {
+          this.tipos.set(tipos);
+          if (!this.tipoInicializado) {
+            this.tipoSeleccionado.set(this.tipoFactura()?.idDocumento ?? null);
+            this.tipoInicializado = true;
+          }
+          // The first request has completed; start the paginated search.
+          queueMicrotask(() => this.buscarDocumentos(true));
+        },
+        error: () => { this.tipos.set([]); this.errorConsulta.set('No fue posible consultar los tipos de documento.'); }
+      });
+  }
   totalPaginas() { return Math.max(1, Math.ceil(this.totalDocumentos() / this.tamanoPagina())); }
-  buscarDocumentos(reiniciar = false) { if (reiniciar) this.pagina.set(1); let p = new HttpParams().set('fechaInicio',this.fechaInicio()).set('fechaFin',this.fechaFin()).set('pagina',String(this.pagina())).set('tamanoPagina',String(this.tamanoPagina())); if(this.serie()) p=p.set('serie',this.serie()); if(this.numero()) p=p.set('numero',this.numero()); if(this.clienteRuc()) p=p.set('clienteRuc',this.clienteRuc()); if(this.tipoSeleccionado() !== null) p=p.append('tiposDocumento',this.tipoSeleccionado()!); this.http.get<any>(`${this.api}/ventas/documentos`,{params:p}).subscribe({next:r=>{this.documentos.set(r.items);this.totalDocumentos.set(r.total);this.pagina.set(r.pagina)},error:()=>{this.documentos.set([]);this.totalDocumentos.set(0)}}); }
+  buscarDocumentos(reiniciar = false) {
+    if (this.consultando()) return;
+    if (!this.fechasValidas()) { this.errorConsulta.set('Ingresa fechas válidas en formato dd/MM/yyyy (inicio no posterior al fin).'); return; }
+    if (reiniciar) this.pagina.set(1);
+    this.consultando.set(true);
+    this.errorConsulta.set('');
+    let params = new HttpParams().set('fechaInicio', this.fechaInicio()).set('fechaFin', this.fechaFin())
+      .set('pagina', String(this.pagina())).set('tamanoPagina', String(this.tamanoPagina()));
+    if (this.serie()) params = params.set('serie', this.serie());
+    if (this.numero()) params = params.set('numero', this.numero());
+    if (this.clienteRuc()) params = params.set('clienteRuc', this.clienteRuc());
+    if (this.tipoSeleccionado() !== null) params = params.append('tiposDocumento', this.tipoSeleccionado()!);
+    this.http.get<any>(`${this.api}/ventas/documentos`, { params })
+      .pipe(finalize(() => this.consultando.set(false)))
+      .subscribe({
+        next: r => { this.documentos.set(r.items); this.totalDocumentos.set(r.total); this.pagina.set(r.pagina); },
+        error: () => { this.documentos.set([]); this.totalDocumentos.set(0); this.errorConsulta.set('No fue posible consultar los documentos.'); }
+      });
+  }
   cambiarPagina(delta: number) { const destino = Math.min(this.totalPaginas(), Math.max(1, this.pagina() + delta)); if (destino !== this.pagina()) { this.pagina.set(destino); this.buscarDocumentos(); } }
   cambiarTamano(event: Event) { this.tamanoPagina.set(Number((event.target as HTMLSelectElement).value)); this.buscarDocumentos(true); }
 
