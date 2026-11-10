@@ -19,7 +19,7 @@
     <p class="nav-label">MÓDULOS</p>
     <div class="nav-group"><span>Ventas</span><button [class.active]="seccion() === 'ventas' && vista() === 'documentos'" (click)="navegar('ventas', 'documentos')">Documentos</button><button [class.active]="seccion() === 'ventas' && vista() === 'carga'" (click)="navegar('ventas', 'carga')">Carga masiva</button></div>
     <div class="nav-group"><span>Compras</span><button [class.active]="seccion() === 'compras' && vista() === 'documentos'" (click)="navegar('compras', 'documentos')">Documentos <em>Próximamente</em></button><button [class.active]="seccion() === 'compras' && vista() === 'carga'" (click)="navegar('compras', 'carga')">Carga masiva</button></div>
-    <div class="sidebar-foot"><span class="dot"></span><div><b>{{ auth.userEmail() }}</b><small>Sesión activa</small></div><button type="button" (click)="auth.logout()">Cerrar sesión</button></div>
+    <div class="sidebar-foot"><span class="user-avatar">●</span><div class="user-info"><b>{{ auth.userEmail() }}</b><small>Sesión activa</small></div><button type="button" (click)="auth.logout()">Cerrar sesión</button></div>
   </aside>
 
   <main>
