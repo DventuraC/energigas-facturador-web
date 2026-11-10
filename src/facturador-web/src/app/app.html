@@ -1,20 +1,129 @@
-<div class="shell">
+@if (!auth.isAuthenticated()) {
+  <div class="login-page">
+    <form class="login-card" (submit)="$event.preventDefault(); login()">
+      <div class="brand-mark">E</div>
+      <p class="eyebrow">ENERGIGAS · FACTURADOR</p>
+      <h1>Iniciar sesión</h1>
+      <p>Accede con tus credenciales corporativas.</p>
+      <label>Correo electrónico<input type="email" autocomplete="username" required [value]="email()" (input)="email.set($any($event.target).value)"></label>
+      <label>Contraseña<input type="password" autocomplete="current-password" required [value]="password()" (input)="password.set($any($event.target).value)"></label>
+      @if (apiConfig.configurationError()) { <p class="login-error" role="alert">{{ apiConfig.configurationError() }}</p> }
+      @if (loginError()) { <p class="login-error" role="alert">{{ loginError() }}</p> }
+      @if (mfaStatus()) { <p class="login-error" role="status">{{ mfaStatus() }}</p> }
+      <button type="submit" [disabled]="loginBusy() || !!apiConfig.configurationError()">{{ loginBusy() ? 'Ingresando...' : 'Ingresar' }}</button>
+    </form>
+  </div>
+} @else {
+<div class="shell" [class.sidebar-collapsed]="sidebarCollapsed()">
   <aside>
-    <div class="brand"><span class="brand-mark">E</span><div><b>Facturador</b><small>Operaciones</small></div></div>
+    <div class="sidebar-top">
+      <div class="brand"><span class="brand-mark">E</span><div class="sidebar-copy"><b>Facturador</b><small>Operaciones</small></div></div>
+      <button type="button" class="sidebar-toggle" (click)="sidebarCollapsed.update(v => !v)" [attr.aria-label]="sidebarCollapsed() ? 'Expandir menú' : 'Contraer menú'" [attr.title]="sidebarCollapsed() ? 'Expandir menú' : 'Contraer menú'" [attr.aria-expanded]="!sidebarCollapsed()">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path [attr.d]="sidebarCollapsed() ? 'm13 9 3 3-3 3' : 'm16 9-3 3 3 3'"/></svg>
+      </button>
+    </div>
     <p class="nav-label">MÓDULOS</p>
-    <div class="nav-group"><span>Ventas</span><button [class.active]="seccion() === 'ventas' && vista() === 'documentos'" (click)="navegar('ventas', 'documentos')">Documentos</button><button [class.active]="seccion() === 'ventas' && vista() === 'carga'" (click)="navegar('ventas', 'carga')">Carga masiva</button></div>
-    <div class="nav-group"><span>Compras</span><button [class.active]="seccion() === 'compras' && vista() === 'documentos'" (click)="navegar('compras', 'documentos')">Documentos <em>Próximamente</em></button><button [class.active]="seccion() === 'compras' && vista() === 'carga'" (click)="navegar('compras', 'carga')">Carga masiva</button></div>
-    <div class="sidebar-foot"><span class="dot"></span> Acceso temporal</div>
+    <div class="nav-group"><span>Ventas</span><button title="Ventas · Documentos" [class.active]="seccion() === 'ventas' && vista() === 'documentos'" (click)="navegar('ventas', 'documentos')"><span class="nav-symbol">▤</span><span class="nav-text">Documentos</span></button><button title="Ventas · Carga masiva" [class.active]="seccion() === 'ventas' && vista() === 'carga'" (click)="navegar('ventas', 'carga')"><span class="nav-symbol">⇧</span><span class="nav-text">Carga masiva</span></button></div>
+    <div class="nav-group"><span>Compras</span><button title="Compras · Documentos (próximamente)" [class.active]="seccion() === 'compras' && vista() === 'documentos'" (click)="navegar('compras', 'documentos')"><span class="nav-symbol">▤</span><span class="nav-text">Documentos <em>Próximamente</em></span></button><button title="Compras · Carga masiva" [class.active]="seccion() === 'compras' && vista() === 'carga'" (click)="navegar('compras', 'carga')"><span class="nav-symbol">⇧</span><span class="nav-text">Carga masiva</span></button></div>
+    <div class="sidebar-foot"><span class="user-avatar">●</span><div class="user-info"><b>{{ auth.userEmail() }}</b><small>Sesión activa</small></div><button type="button" title="Cerrar sesión" (click)="auth.logout()"><span class="logout-symbol">↪</span><span class="logout-text">Cerrar sesión</span></button></div>
   </aside>
 
   <main>
-    <header><div><p class="eyebrow">{{ etiquetaArea().toUpperCase() }}</p><h1>{{ vista() === 'documentos' ? 'Documentos' : 'Carga masiva' }}</h1></div><span class="status">JWT preparado</span></header>
+    @if (vista() !== 'documentos') {<header class="page-header"><div><h1>Carga masiva</h1></div></header>}
 
     @if (vista() === 'documentos') {
-      @if (seccion() === 'ventas') {<section class="card documents"><div class="filter-head"><div><p class="eyebrow">DOCUMENTOS REGISTRADOS</p><h2>Ventas, créditos y débitos</h2></div><b>{{ totalDocumentos() }} resultado(s)</b></div><div class="filters"><label>Inicio<input type="date" [value]="fechaInicio()" (change)="actualizarTexto('fechaInicio',$event); cargarTipos()"></label><label>Fin<input type="date" [value]="fechaFin()" (change)="actualizarTexto('fechaFin',$event); cargarTipos()"></label><label>Serie<input [value]="serie()" (input)="actualizarTexto('serie',$event)"></label><label>Número<input type="number" [value]="numero()" (input)="actualizarTexto('numero',$event)"></label><label>Centro de costo<input type="number" [value]="centroCosto()" (input)="actualizarTexto('centroCosto',$event)"></label><label>Tipos registrados<select multiple (change)="cambiarTipos($event)">@for (tipo of tipos(); track tipo.idDocumento) {<option [value]="tipo.idDocumento">{{ tipo.nombre }}</option>}</select></label></div><div class="filter-actions"><button type="button" (click)="buscarDocumentos(true)">Filtrar</button><button type="button" class="secondary" (click)="limpiarFiltros()">Limpiar</button></div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Serie-Número</th><th class="expandable-header" (click)="alternarColumna('cliente')">Cliente <span>{{ columnaExpandida() === 'cliente' ? '−' : '+' }}</span></th><th>Subtotal</th><th>IGV</th><th>Percepción</th><th>Total</th><th>Estado</th><th class="expandable-header" (click)="alternarColumna('referencia')">Referencia NC/ND <span>{{ columnaExpandida() === 'referencia' ? '−' : '+' }}</span></th><th class="expandable-header" (click)="alternarColumna('observaciones')">Observaciones <span>{{ columnaExpandida() === 'observaciones' ? '−' : '+' }}</span></th></tr></thead><tbody>@for (doc of documentos(); track doc.op) {<tr><td>{{ doc.fecha | date:'dd/MM/yyyy' }}</td><td>{{ doc.documento }}</td><td>{{ doc.serie }}-{{ doc.numero }}</td><td class="cliente" [class.expanded]="columnaExpandida() === 'cliente'"><b>{{ doc.idAgenda || '—' }}</b><small>{{ doc.agendaNombre || 'Sin nombre' }}</small></td><td>{{ doc.subtotal | number:'1.2-2' }}</td><td>{{ doc.igv | number:'1.2-2' }}</td><td>{{ doc.percepcion | number:'1.2-2' }}</td><td><b>{{ doc.total | number:'1.2-2' }}</b></td><td><span class="state" [class.valid]="doc.estado === 'Válido'">{{ doc.estado }}</span></td><td class="referencia" [class.expanded]="columnaExpandida() === 'referencia'">@if (doc.fechaReferencia) {<span class="reference">{{ doc.fechaReferencia | date:'dd/MM/yyyy' }}<br>{{ doc.documentoReferencia }} · {{ doc.serieReferencia }}-{{ doc.numeroReferencia }}</span>} @else {<span>—</span>}</td><td class="observaciones" [class.expanded]="columnaExpandida() === 'observaciones'">{{ columnaExpandida() === 'observaciones' ? (doc.observaciones || '—') : textoResumido(doc.observaciones) }}</td></tr>} @empty {<tr><td colspan="11">No hay documentos para los filtros aplicados.</td></tr>}</tbody></table></div><div class="pagination"><span>Página {{ pagina() }} de {{ totalPaginas() }}</span><label>Filas <select [value]="tamanoPagina()" (change)="cambiarTamano($event)"><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label><div><button type="button" class="secondary" (click)="cambiarPagina(-1)" [disabled]="pagina() === 1">Anterior</button><button type="button" class="secondary" (click)="cambiarPagina(1)" [disabled]="pagina() === totalPaginas()">Siguiente</button></div></div></section>} @else {<section class="empty-state"><div class="empty-icon">▤</div><p class="eyebrow">MÓDULO EN PREPARACIÓN</p><h2>Documentos de compras</h2><p>Esta vista estará disponible próximamente.</p></section>}
+      @if (seccion() === 'ventas') {
+        <section class="card documents">
+          <div class="filter-head"><div><p class="eyebrow">DOCUMENTOS REGISTRADOS</p><h2>Ventas, créditos y débitos</h2></div><b>{{ totalDocumentos() }} resultado(s)</b></div>
+          <fieldset class="filters-fieldset" [disabled]="consultando()"><div class="filters compact-filters"><label>Inicio<input type="text" inputmode="numeric" placeholder="dd/MM/yyyy" maxlength="10" [value]="fechaInicioTexto()" (change)="actualizarFecha('fechaInicio',$event); cargarTipos()" [disabled]="consultando()" aria-label="Fecha inicio dd/MM/yyyy"></label><label>Fin<input type="text" inputmode="numeric" placeholder="dd/MM/yyyy" maxlength="10" [value]="fechaFinTexto()" (change)="actualizarFecha('fechaFin',$event); cargarTipos()" [disabled]="consultando()" aria-label="Fecha fin dd/MM/yyyy"></label><label>Serie<input [value]="serie()" (input)="actualizarTexto('serie',$event)"></label><label>Número<input type="number" [value]="numero()" (input)="actualizarTexto('numero',$event)"></label><label>RUC o razón social<input [value]="clienteRuc()" (input)="actualizarTexto('clienteRuc',$event)" placeholder="RUC o cliente"></label><label>Tipo de documento<select [value]="tipoSeleccionado() ?? ''" (change)="cambiarTipo($event)"><option value="">Todos los tipos</option>@for (tipo of tipos(); track tipo.idDocumento) {<option [value]="tipo.idDocumento">{{ tipo.nombre }}</option>}</select></label></div></fieldset>
+          <div class="filter-actions"><button type="button" (click)="buscarDocumentos(true)" [disabled]="consultando()">@if (consultando()) { <span class="loading-spinner" aria-hidden="true"></span> Consultando... } @else { Filtrar }</button><button type="button" class="secondary" (click)="limpiarFiltros()" [disabled]="consultando()">Restablecer</button></div>
+          @if (errorConsulta()) { <p class="query-error" role="alert">{{ errorConsulta() }}</p> }
+          @if (consultando()) { <div class="query-loading" role="status" aria-live="polite"><span class="loading-spinner" aria-hidden="true"></span> Cargando resultados, espera un momento...</div> }
+          <div class="table-wrap"><table><thead><tr><th class="actions-header">Acciones</th><th>Fecha</th><th>Tipo</th><th>Serie-Número</th><th class="expandable-header" (click)="alternarColumna('cliente')">Cliente <span>{{ columnaExpandida() === 'cliente' ? '−' : '+' }}</span></th><th>Subtotal</th><th>IGV</th><th>Percepción</th><th>Total</th><th>Estado</th><th class="expandable-header" (click)="alternarColumna('referencia')">Referencia NC/ND <span>{{ columnaExpandida() === 'referencia' ? '−' : '+' }}</span></th><th class="expandable-header" (click)="alternarColumna('observaciones')">Observaciones <span>{{ columnaExpandida() === 'observaciones' ? '−' : '+' }}</span></th></tr></thead><tbody>
+            @for (doc of documentos(); track doc.op) {<tr><td class="actions-cell"><div class="row-actions">
+  <button type="button" class="action-icon" (click)="alternarDetalle(doc)" [attr.title]="detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle'" [attr.aria-label]="detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle'" [attr.aria-expanded]="detalleDocumentoOp() === doc.op" (mouseenter)="mostrarTooltip($event, detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle')" (mouseleave)="ocultarTooltip()" (focus)="mostrarTooltip($event, detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle')" (blur)="ocultarTooltip()">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+    <span class="action-tooltip">{{ detalleDocumentoOp() === doc.op ? 'Ocultar detalle' : 'Expandir detalle' }}</span>
+  </button>
+  <button type="button" class="action-icon pending" disabled title="Enviar a facturador (próximamente)" (mouseenter)="mostrarTooltip($event, 'Enviar a facturador · Próximamente')" (mouseleave)="ocultarTooltip()" aria-label="Enviar a facturador, próximamente">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 16-8-5 16-3-7-8-1Z"/><path d="m12 13 8-9"/></svg><span class="action-tooltip">Enviar a facturador · Próximamente</span>
+  </button>
+  <button type="button" class="action-icon danger" (click)="solicitarAnulacion(doc)" [disabled]="doc.estado !== 'Válido' || !doc.docSunat || anulandoOp() !== null" [title]="!doc.docSunat ? 'DocSunat no disponible' : 'Anular documento'" aria-label="Anular documento" (mouseenter)="mostrarTooltip($event, 'Anular documento')" (mouseleave)="ocultarTooltip()" (focus)="mostrarTooltip($event, 'Anular documento')" (blur)="ocultarTooltip()">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg><span class="action-tooltip">{{ anulandoOp() === doc.op ? 'Anulando...' : 'Anular' }}</span>
+  </button>
+</div></td><td>{{ doc.fecha | date:'dd/MM/yyyy' }}</td><td>{{ doc.documento }}</td><td>{{ doc.serie }}-{{ doc.numero }}</td><td class="cliente" [class.expanded]="columnaExpandida() === 'cliente'"><b>{{ doc.idAgenda || '—' }}</b><small>{{ doc.agendaNombre || 'Sin nombre' }}</small></td><td>{{ doc.subtotal | number:'1.2-2' }}</td><td>{{ doc.igv | number:'1.2-2' }}</td><td>{{ doc.percepcion | number:'1.2-2' }}</td><td><b>{{ doc.total | number:'1.2-2' }}</b></td><td><span class="state" [class.valid]="doc.estado === 'Válido'">{{ doc.estado }}</span></td><td class="referencia" [class.expanded]="columnaExpandida() === 'referencia'">@if (doc.fechaReferencia) {<span class="reference">{{ doc.fechaReferencia | date:'dd/MM/yyyy' }}<br>{{ doc.documentoReferencia }} · {{ doc.serieReferencia }}-{{ doc.numeroReferencia }}</span>} @else {<span>—</span>}</td><td class="observaciones" [class.expanded]="columnaExpandida() === 'observaciones'">{{ columnaExpandida() === 'observaciones' ? (doc.observaciones || '—') : textoResumido(doc.observaciones) }}</td></tr>@if (detalleDocumentoOp() === doc.op) {<tr class="sale-detail-row"><td colspan="12">
+  <div class="sale-detail">
+    <div class="sale-detail-heading">
+      <div><span class="detail-kicker">DESGLOSE DEL DOCUMENTO</span><h3>{{ doc.documento }} · {{ doc.serie }}-{{ doc.numero }}</h3><p>Productos, cantidades y centros de costo asociados</p></div>
+      <div class="detail-summary"><span>{{ (doc.detalles || []).length }} línea(s)</span><strong>{{ totalDetalle(doc) | number:'1.2-2' }}</strong><small>Importe acumulado</small></div>
+    </div>
+    <div class="detail-table-wrap"><table class="sale-lines"><thead><tr><th>#</th><th>Producto / código</th><th>Centro de costo</th><th>Cantidad</th><th>Precio unitario</th><th>Importe</th></tr></thead><tbody>
+    @for (linea of doc.detalles || []; track $index) {
+      <tr><td class="line-index">{{ $index + 1 }}</td><td><strong>{{ linea.producto || 'Producto sin descripción' }}</strong><small>{{ linea.idItem || 'Sin código' }}</small></td><td><span class="cost-center">{{ linea.centroCosto || 'Sin centro de costo' }}</span><small>{{ linea.idCentroCosto ?? '—' }}</small></td><td class="numeric">{{ linea.cantidad == null ? '—' : (linea.cantidad | number:'1.2-2') }}</td><td class="numeric">{{ linea.precio == null ? '—' : (linea.precio | number:'1.2-4') }}</td><td class="numeric amount">{{ linea.importe == null ? '—' : (linea.importe | number:'1.2-2') }}</td></tr>
+    } @empty { <tr><td colspan="6" class="empty-lines">Este documento no tiene líneas registradas.</td></tr> }
+    </tbody></table></div>
+  </div>
+</td></tr>} } @empty {<tr><td colspan="12">No hay documentos para los filtros aplicados.</td></tr>}
+          </tbody></table></div><div class="pagination"><span>Página {{ pagina() }} de {{ totalPaginas() }}</span><label>Filas <select [value]="tamanoPagina()" (change)="cambiarTamano($event)" [disabled]="consultando()"><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label><div><button type="button" class="secondary" (click)="cambiarPagina(-1)" [disabled]="consultando() || pagina() === 1">Anterior</button><button type="button" class="secondary" (click)="cambiarPagina(1)" [disabled]="consultando() || pagina() === totalPaginas()">Siguiente</button></div></div>
+        </section>
+      } @else {<section class="empty-state"><div class="empty-icon">▤</div><p class="eyebrow">MÓDULO EN PREPARACIÓN</p><h2>Documentos de compras</h2><p>Esta vista estará disponible próximamente.</p></section>}
     } @else {
-      <section class="hero"><div><p class="eyebrow">{{ etiquetaArea().toUpperCase() }} · CARGA DE NOTAS</p><h2>Valida, carga y procesa documentos.</h2><p>La autenticación JWT está preparada y se activará cuando se configure el proveedor de identidad.</p></div><ol><li><b>1</b> Validar Excel</li><li><b>2</b> Cargar auxiliares</li><li><b>3</b> Ejecutar procedimiento</li></ol></section>
-      <section class="card"><h2>Nueva carga de {{ etiquetaArea().toLowerCase() }}</h2><p>El archivo debe incluir la hoja <strong>Hoja1</strong> y las 19 columnas del formato aprobado.</p><label class="file-input"><span>Seleccionar archivo .xlsx</span><input type="file" accept=".xlsx" (change)="seleccionarArchivo($event)"></label><p class="message">{{ mensaje() }}</p>@if (errores().length) {<ul class="errors">@for (error of errores(); track error) {<li>{{ error }}</li>}</ul>}<div class="actions"><button type="button" (click)="validar()" [disabled]="!archivo() || procesando()">Validar archivo</button><button type="button" class="secondary" (click)="procesar()" [disabled]="!cargaId() || procesando()">Cargar auxiliares</button><button type="button" class="secondary" (click)="ejecutarProcedimiento()" [disabled]="procesando()">Ejecutar procedimiento</button></div></section>
+      <section class="hero upload-hero"><div><p class="eyebrow">PROCESO GUIADO</p><h2>Gestiona tu carga en tres etapas.</h2><p>Sube el archivo, valida su contenido y completa cada etapa en orden.</p></div><span class="hero-sheet">Hoja requerida <b>cargaMasiva</b></span></section>
+      <section class="card upload-card">
+        <div class="upload-workspace"><div class="file-zone">
+          <div><b>{{ archivo()?.name || 'Aún no hay archivo seleccionado' }}</b><small>{{ archivo() ? 'Puedes reemplazarlo o eliminarlo; ambas acciones reinician las etapas.' : 'Solo se aceptan archivos .xlsx.' }}</small></div>
+          <div class="file-controls"><label class="file-input"><span>{{ archivo() ? 'Reemplazar archivo' : 'Subir archivo' }}</span><input #archivoInput type="file" accept=".xlsx" (change)="seleccionarArchivo($event)"></label>@if (archivo()) {<button type="button" class="text-button" (click)="eliminarArchivo(archivoInput)">Eliminar</button>}</div>
+        </div><div class="stage-stack"><div class="stages" aria-label="Etapas de la carga masiva">
+          <article class="stage" [class.ready]="etapas().validar === 'lista'" [class.success]="etapas().validar === 'correcta'" [class.failed]="etapas().validar === 'error'">
+            <div class="stage-number">@if (etapas().validar === 'correcta') {✓} @else if (etapas().validar === 'error') {×} @else {1}</div><div><p class="stage-title">Etapa 1 · Validar archivo</p><p>{{ mensajesEtapa().validar }}</p></div><button type="button" (click)="validar()" [disabled]="!archivo() || procesando() || etapas().validar === 'correcta'">{{ procesando() && etapas().validar === 'lista' ? 'Validando...' : 'Validar' }}</button>
+          </article>
+          <article class="stage" [class.ready]="etapas().auxiliares === 'lista'" [class.success]="etapas().auxiliares === 'correcta'" [class.failed]="etapas().auxiliares === 'error'" [class.locked]="etapas().auxiliares === 'bloqueada'">
+            <div class="stage-number">@if (etapas().auxiliares === 'correcta') {✓} @else if (etapas().auxiliares === 'error') {×} @else if (etapas().auxiliares === 'bloqueada') {🔒} @else {2}</div><div><p class="stage-title">Etapa 2 · Cargar auxiliares</p><p>{{ mensajesEtapa().auxiliares }}</p></div><button type="button" (click)="procesar()" [disabled]="(etapas().auxiliares !== 'lista' && etapas().auxiliares !== 'error') || procesando()">{{ procesando() && (etapas().auxiliares === 'lista' || etapas().auxiliares === 'error') ? 'Cargando...' : 'Cargar' }}</button>
+          </article>
+          <article class="stage" [class.ready]="etapas().carga === 'lista'" [class.success]="etapas().carga === 'correcta'" [class.failed]="etapas().carga === 'error'" [class.locked]="etapas().carga === 'bloqueada'">
+            <div class="stage-number">@if (etapas().carga === 'correcta') {✓} @else if (etapas().carga === 'error') {×} @else if (etapas().carga === 'bloqueada') {🔒} @else {3}</div><div><p class="stage-title">Etapa 3 · Ejecutar carga masiva</p><p>{{ mensajesEtapa().carga }}</p></div><button type="button" (click)="ejecutarProcedimiento()" [disabled]="(etapas().carga !== 'lista' && etapas().carga !== 'error') || procesando()">{{ procesando() && (etapas().carga === 'lista' || etapas().carga === 'error') ? 'Ejecutando...' : 'Ejecutar' }}</button>
+          </article>
+        </div>
+
+        @if (errores().length) {<ul class="errors">@for (error of errores(); track error) {<li>{{ error }}</li>}</ul>}</div></div>
+        <details class="requirements" open><summary><span><b>Formato requerido</b><small>Hoja cargaMasiva · 19 columnas</small></span><span class="requirements-toggle">Ver / ocultar</span></summary><div class="requirements-body"><p>Respeta el orden desde la columna 1 y el tipo de dato indicado.</p><ol class="columns-required">@for (columna of columnasRequeridas; track columna.nombre) {<li><span class="column-number">{{ $index + 1 }}</span><span><b>{{ columna.nombre }}</b><small>{{ columna.formato }} · {{ columna.requerido ? 'Obligatorio' : 'Opcional' }}</small></span></li>}</ol></div></details>
+      </section>
+      @if (documentosCarga().length) {
+        <section class="card load-results"><div class="result-head"><div><p class="eyebrow">DETALLE DEL ARCHIVO</p><h3>Estado de documentos</h3></div><span>{{ documentosCarga().length }} documento(s)</span></div><div class="table-wrap"><table class="load-table"><thead><tr><th>Estado</th><th>Detalle</th><th>#</th><th>Fecha</th><th>Fecha venc.</th><th>Tipo doc.</th><th>Serie</th><th>Número</th><th>Motivo</th><th>RUC</th><th>Moneda</th><th>Observación</th><th>Subtotal</th><th>Impuesto</th><th>Total</th></tr></thead><tbody>@for (documento of documentosCarga(); track documento.orden) {<tr><td><span class="load-status" [class.inserted]="documento.estado === 'Insertado'" [class.replaced]="documento.estado === 'Reemplazado'" [class.omitted]="documento.estado === 'Omitido'" [class.failed]="documento.estado === 'Error'">{{ documento.estado }}</span></td><td class="load-detail" [title]="documento.detalle || ''">{{ documento.detalle || '—' }}</td><td>{{ documento.orden }}</td><td>{{ documento.fecha | date:'dd/MM/yyyy' }}</td><td>{{ documento.fechaVencimiento ? (documento.fechaVencimiento | date:'dd/MM/yyyy') : '—' }}</td><td>{{ documento.tipoDocumento }}</td><td>{{ documento.serie }}</td><td>{{ documento.numero }}</td><td>{{ documento.motivoNota ?? '—' }}</td><td>{{ documento.ruc || '—' }}</td><td>{{ documento.moneda ?? '—' }}</td><td class="load-observation" [title]="documento.observacion || ''">{{ documento.observacion || '—' }}</td><td>{{ documento.subtotal == null ? '—' : (documento.subtotal | number:'1.2-2') }}</td><td>{{ documento.impuesto == null ? '—' : (documento.impuesto | number:'1.2-2') }}</td><td>{{ documento.total == null ? '—' : (documento.total | number:'1.2-2') }}</td></tr>}</tbody></table></div></section>
+      }
     }
   </main>
 </div>
+
+}
+
+
+@if (tooltipAccion()) {
+  <div class="floating-action-tooltip" role="tooltip" [style.left.px]="tooltipAccion()!.x" [style.top.px]="tooltipAccion()!.y">{{ tooltipAccion()!.texto }}</div>
+}
+@if (documentoPendiente()) {
+  <div class="void-overlay" role="presentation">
+    <section class="void-modal" role="alertdialog" aria-modal="true" aria-labelledby="void-confirm-title" aria-describedby="void-confirm-desc">
+      <button type="button" class="void-close" aria-label="Cerrar" (click)="cerrarConfirmacion()" [disabled]="anulandoOp() !== null">×</button>
+      <div class="void-symbol warning">!</div>
+      <p class="void-eyebrow">CONFIRMACIÓN REQUERIDA</p>
+      <h2 id="void-confirm-title">¿Anular documento?</h2>
+      <p id="void-confirm-desc">Estás por anular <strong>{{ documentoPendiente()!.serie }}-{{ documentoPendiente()!.numero }}</strong>. Una vez aceptada la anulación, <strong>no existe reversión.</strong></p>
+      <div class="void-actions">
+        <button type="button" class="void-cancel" (click)="cerrarConfirmacion()" [disabled]="anulandoOp() !== null">Cancelar</button>
+        <button type="button" class="void-confirm" (click)="confirmarAnulacion()" [disabled]="anulandoOp() !== null">@if (anulandoOp() !== null) { <span class="loading-spinner"></span> Anulando... } @else { Sí, anular documento }</button>
+      </div>
+    </section>
+  </div>
+}
+@if (modalResultado()) {
+  <div class="void-overlay">
+    <section class="void-modal result" role="alertdialog" aria-modal="true" aria-labelledby="void-result-title" aria-describedby="void-result-desc">
+      <button type="button" class="void-close" aria-label="Cerrar mensaje" title="Cerrar" (click)="cerrarResultado()">×</button>
+      <div class="void-symbol" [class.success]="modalResultado()!.ok" [class.failure]="!modalResultado()!.ok">{{ modalResultado()!.ok ? '✓' : '!' }}</div>
+      <p class="void-eyebrow">RESULTADO DE ANULACIÓN</p>
+      <h2 id="void-result-title">{{ modalResultado()!.ok ? 'Documento anulado' : 'No se pudo anular' }}</h2>
+      <p id="void-result-desc">{{ modalResultado()!.mensaje }}</p>
+    </section>
+  </div>
+}
