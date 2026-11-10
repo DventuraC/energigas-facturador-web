@@ -10,7 +10,7 @@ La paginación permite navegar y elegir 25, 50 o 100 filas. Las columnas Cliente
 
 ## Carga masiva
 
-El usuario selecciona el Excel, lo valida, carga los auxiliares y ejecuta el procedimiento mediante la API.
+El usuario carga un archivo `.xlsx` y completa tres etapas obligatorias en orden: validar archivo, cargar auxiliares y ejecutar carga masiva. Las etapas posteriores permanecen bloqueadas hasta que la anterior termine correctamente. Cada una informa su estado mediante bloqueo, check o error; si el archivo se elimina o reemplaza, el flujo vuelve a la primera etapa. La pantalla expone la hoja requerida `cargaMasiva` y las 19 columnas en el orden esperado.
 
 ## Autenticación
 

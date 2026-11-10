@@ -4,6 +4,8 @@ import { HttpClient, HttpParams, HttpErrorResponse } from '@angular/common/http'
 import { finalize } from 'rxjs';
 import { AuthService, JwtLoginResponse } from './auth.service';
 
+type EstadoEtapa = 'bloqueada' | 'lista' | 'correcta' | 'error';
+
 @Component({
   imports: [CommonModule],
   selector: 'app-root',
@@ -46,6 +48,17 @@ export class App implements OnInit {
   protected readonly mensaje = signal('Selecciona un archivo para validar su estructura.');
   protected readonly errores = signal<string[]>([]);
   protected readonly procesando = signal(false);
+  protected readonly etapas = signal<Record<'validar' | 'auxiliares' | 'carga', EstadoEtapa>>({
+    validar: 'bloqueada', auxiliares: 'bloqueada', carga: 'bloqueada'
+  });
+  protected readonly mensajesEtapa = signal<Record<'validar' | 'auxiliares' | 'carga', string>>({
+    validar: 'Carga un archivo .xlsx para iniciar.', auxiliares: 'Pendiente de validar el archivo.', carga: 'Pendiente de cargar auxiliares.'
+  });
+  protected readonly columnasRequeridas = [
+    'fecha', 'fechav', 'tipodocumento', 'serie', 'numero', 'motivonota', 'ruc', 'moneda', 'observacion',
+    'subtotal', 'impuesto', 'total', 'serie (referencia)', 'numero (referencia)', 'iditem', 'cantidad',
+    'precio', 'subtotal (ítem)', 'ccosto'
+  ];
   protected readonly fechaInicio = signal('2026-11-01');
   protected readonly fechaFin = signal('2026-11-09');
   protected readonly serie = signal(''); protected readonly numero = signal(''); protected readonly centroCosto = signal('');
@@ -63,8 +76,7 @@ export class App implements OnInit {
   navegar(seccion: 'ventas' | 'compras', vista: 'documentos' | 'carga') {
     this.seccion.set(seccion);
     this.vista.set(vista);
-    this.archivo.set(null); this.cargaId.set(null); this.errores.set([]);
-    this.mensaje.set('Selecciona un archivo para validar su estructura.');
+    this.reiniciarCarga();
     if (seccion === 'ventas' && vista === 'documentos') { this.cargarTipos(); this.buscarDocumentos(); }
   }
 
@@ -82,33 +94,61 @@ export class App implements OnInit {
 
   seleccionarArchivo(event: Event) {
     const input = event.target as HTMLInputElement;
+    const cargaAnterior = this.cargaId();
+    if (cargaAnterior) this.http.delete(`${this.api}/cargas/${cargaAnterior}`).subscribe();
     this.archivo.set(input.files?.[0] ?? null);
     this.cargaId.set(null); this.errores.set([]);
-    this.mensaje.set(this.archivo() ? `Archivo seleccionado: ${this.archivo()!.name}` : 'Selecciona un archivo para validar su estructura.');
+    const hayArchivo = !!this.archivo();
+    this.etapas.set({ validar: hayArchivo ? 'lista' : 'bloqueada', auxiliares: 'bloqueada', carga: 'bloqueada' });
+    this.mensajesEtapa.set({
+      validar: hayArchivo ? `Listo para validar: ${this.archivo()!.name}` : 'Carga un archivo .xlsx para iniciar.',
+      auxiliares: 'Pendiente de validar el archivo.', carga: 'Pendiente de cargar auxiliares.'
+    });
+    this.mensaje.set(hayArchivo ? `Archivo seleccionado: ${this.archivo()!.name}` : 'Selecciona un archivo para validar su estructura.');
+  }
+
+  eliminarArchivo(input: HTMLInputElement) {
+    const cargaAnterior = this.cargaId();
+    if (cargaAnterior) this.http.delete(`${this.api}/cargas/${cargaAnterior}`).subscribe();
+    input.value = '';
+    this.reiniciarCarga();
+  }
+
+  private reiniciarCarga() {
+    this.archivo.set(null); this.cargaId.set(null); this.errores.set([]); this.procesando.set(false);
+    this.etapas.set({ validar: 'bloqueada', auxiliares: 'bloqueada', carga: 'bloqueada' });
+    this.mensajesEtapa.set({ validar: 'Carga un archivo .xlsx para iniciar.', auxiliares: 'Pendiente de validar el archivo.', carga: 'Pendiente de cargar auxiliares.' });
+    this.mensaje.set('Selecciona un archivo para validar su estructura.');
   }
 
   validar() {
     const archivo = this.archivo(); if (!archivo) return;
     const data = new FormData(); data.append('archivo', archivo); this.procesando.set(true);
     this.http.post<{ cargaId: string; registrosValidos: number; errores: string[] }>(`${this.api}/cargas/validar`, data).subscribe({
-      next: resultado => { this.cargaId.set(resultado.cargaId || null); this.errores.set(resultado.errores); this.mensaje.set(resultado.errores.length ? 'Se encontraron errores de estructura.' : `${resultado.registrosValidos} documento(s) validado(s).`); this.procesando.set(false); },
-      error: () => { this.mensaje.set('No fue posible validar el archivo. Verifica que la API esté activa.'); this.procesando.set(false); }
+      next: resultado => {
+        const tieneErrores = resultado.errores.length > 0;
+        this.cargaId.set(tieneErrores ? null : resultado.cargaId || null); this.errores.set(resultado.errores);
+        this.etapas.set({ validar: tieneErrores ? 'error' : 'correcta', auxiliares: tieneErrores ? 'bloqueada' : 'lista', carga: 'bloqueada' });
+        this.mensajesEtapa.set({ validar: tieneErrores ? 'La validación encontró errores.' : `${resultado.registrosValidos} documento(s) validado(s).`, auxiliares: tieneErrores ? 'Pendiente de corregir el archivo.' : 'Listo para cargar auxiliares.', carga: 'Pendiente de cargar auxiliares.' });
+        this.mensaje.set(tieneErrores ? 'Se encontraron errores de estructura.' : `${resultado.registrosValidos} documento(s) validado(s).`); this.procesando.set(false);
+      },
+      error: () => { this.etapas.update(x => ({ ...x, validar: 'error' })); this.mensajesEtapa.update(x => ({ ...x, validar: 'No fue posible validar el archivo.' })); this.mensaje.set('No fue posible validar el archivo. Verifica que la API esté activa.'); this.procesando.set(false); }
     });
   }
 
   procesar() {
     const id = this.cargaId(); if (!id) return; this.procesando.set(true);
     this.http.post<{ insertados: number; duplicados: number; mensaje: string }>(`${this.api}/cargas/${id}/procesar`, {}).subscribe({
-      next: resultado => { this.mensaje.set(`${resultado.mensaje} Insertados: ${resultado.insertados}. Duplicados: ${resultado.duplicados}.`); this.procesando.set(false); },
-      error: () => { this.mensaje.set('La carga no pudo procesarse. Revisa la conexión configurada en la API.'); this.procesando.set(false); }
+      next: resultado => { this.etapas.update(x => ({ ...x, auxiliares: 'correcta', carga: 'lista' })); this.mensajesEtapa.update(x => ({ ...x, auxiliares: 'Auxiliares cargados correctamente.', carga: 'Listo para ejecutar la carga masiva.' })); this.mensaje.set(`${resultado.mensaje} Insertados: ${resultado.insertados}. Duplicados: ${resultado.duplicados}.`); this.procesando.set(false); },
+      error: () => { this.etapas.update(x => ({ ...x, auxiliares: 'error' })); this.mensajesEtapa.update(x => ({ ...x, auxiliares: 'No se pudieron cargar los auxiliares.' })); this.mensaje.set('La carga no pudo procesarse. Revisa la conexión configurada en la API.'); this.procesando.set(false); }
     });
   }
 
   ejecutarProcedimiento() {
     this.procesando.set(true);
     this.http.post<{ mensaje: string }>(`${this.api}/cargas/ejecutar-procedimiento`, {}).subscribe({
-      next: resultado => { this.mensaje.set(resultado.mensaje); this.procesando.set(false); },
-      error: () => { this.mensaje.set('El procedimiento no pudo ejecutarse. Revisa el resultado de la API.'); this.procesando.set(false); }
+      next: resultado => { this.etapas.update(x => ({ ...x, carga: 'correcta' })); this.mensajesEtapa.update(x => ({ ...x, carga: resultado.mensaje })); this.mensaje.set(resultado.mensaje); this.procesando.set(false); },
+      error: () => { this.etapas.update(x => ({ ...x, carga: 'error' })); this.mensajesEtapa.update(x => ({ ...x, carga: 'No se pudo ejecutar la carga masiva.' })); this.mensaje.set('El procedimiento no pudo ejecutarse. Revisa el resultado de la API.'); this.procesando.set(false); }
     });
   }
 }
