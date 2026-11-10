@@ -7,9 +7,10 @@
       <p>Accede con tus credenciales corporativas.</p>
       <label>Correo electrónico<input type="email" autocomplete="username" required [value]="email()" (input)="email.set($any($event.target).value)"></label>
       <label>Contraseña<input type="password" autocomplete="current-password" required [value]="password()" (input)="password.set($any($event.target).value)"></label>
+      @if (apiConfig.configurationError()) { <p class="login-error" role="alert">{{ apiConfig.configurationError() }}</p> }
       @if (loginError()) { <p class="login-error" role="alert">{{ loginError() }}</p> }
       @if (mfaStatus()) { <p class="login-error" role="status">{{ mfaStatus() }}</p> }
-      <button type="submit" [disabled]="loginBusy()">{{ loginBusy() ? 'Ingresando...' : 'Ingresar' }}</button>
+      <button type="submit" [disabled]="loginBusy() || !!apiConfig.configurationError()">{{ loginBusy() ? 'Ingresando...' : 'Ingresar' }}</button>
     </form>
   </div>
 } @else {
