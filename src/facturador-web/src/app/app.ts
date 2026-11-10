@@ -74,34 +74,36 @@ export class App implements OnInit {
   ];
   protected readonly fechaInicio = signal('2026-11-01');
   protected readonly fechaFin = signal('2026-11-09');
-  protected readonly serie = signal(''); protected readonly numero = signal(''); protected readonly centroCosto = signal('');
+  protected readonly serie = signal(''); protected readonly numero = signal(''); protected readonly clienteRuc = signal('');
   protected readonly tipos = signal<{idDocumento:number; nombre:string}[]>([]);
-  protected readonly tiposSeleccionados = signal<number[]>([]);
+  protected readonly tipoSeleccionado = signal<number | null>(null);
   protected readonly documentos = signal<any[]>([]); protected readonly totalDocumentos = signal(0);
   protected readonly pagina = signal(1); protected readonly tamanoPagina = signal(25);
   protected readonly columnaExpandida = signal<string | null>(null);
   private readonly api = 'http://localhost:5000/api';
+  private tipoInicializado = false;
 
   ngOnInit() {
-    if (this.auth.isAuthenticated()) { this.cargarTipos(); this.buscarDocumentos(); }
+    if (this.auth.isAuthenticated()) this.cargarTipos();
   }
 
   navegar(seccion: 'ventas' | 'compras', vista: 'documentos' | 'carga') {
     this.seccion.set(seccion);
     this.vista.set(vista);
     this.reiniciarCarga();
-    if (seccion === 'ventas' && vista === 'documentos') { this.cargarTipos(); this.buscarDocumentos(); }
+    if (seccion === 'ventas' && vista === 'documentos') this.cargarTipos();
   }
 
   etiquetaArea() { return this.seccion() === 'ventas' ? 'Ventas' : 'Compras'; }
-  actualizarTexto(campo: 'fechaInicio'|'fechaFin'|'serie'|'numero'|'centroCosto', event: Event) { (this[campo] as any).set((event.target as HTMLInputElement).value); }
-  cambiarTipos(event: Event) { this.tiposSeleccionados.set(Array.from((event.target as HTMLSelectElement).selectedOptions).map(x => Number(x.value))); }
-  limpiarFiltros() { this.serie.set(''); this.numero.set(''); this.centroCosto.set(''); this.tiposSeleccionados.set([]); this.buscarDocumentos(true); }
+  actualizarTexto(campo: 'fechaInicio'|'fechaFin'|'serie'|'numero'|'clienteRuc', event: Event) { (this[campo] as any).set((event.target as HTMLInputElement).value); }
+  cambiarTipo(event: Event) { const valor = (event.target as HTMLSelectElement).value; this.tipoSeleccionado.set(valor ? Number(valor) : null); }
+  limpiarFiltros() { this.serie.set(''); this.numero.set(''); this.clienteRuc.set(''); this.tipoSeleccionado.set(this.tipoFactura()?.idDocumento ?? null); this.buscarDocumentos(true); }
   alternarColumna(columna: string) { this.columnaExpandida.update(actual => actual === columna ? null : columna); }
   textoResumido(valor: string | null | undefined, limite = 20) { if (!valor) return '—'; return valor.length > limite ? `${valor.slice(0, limite)}…` : valor; }
-  cargarTipos() { let p = new HttpParams().set('fechaInicio', this.fechaInicio()).set('fechaFin', this.fechaFin()); this.http.get<{idDocumento:number; nombre:string}[]>(`${this.api}/ventas/tipos-documento`, {params:p}).subscribe({next:r=>this.tipos.set(r), error:()=>this.tipos.set([])}); }
+  tipoFactura() { return this.tipos().find(x => x.nombre.toLowerCase() === 'factura (ns-venta)'); }
+  cargarTipos() { let p = new HttpParams().set('fechaInicio', this.fechaInicio()).set('fechaFin', this.fechaFin()); this.http.get<{idDocumento:number; nombre:string}[]>(`${this.api}/ventas/tipos-documento`, {params:p}).subscribe({next:r=>{ this.tipos.set(r); if (!this.tipoInicializado) { this.tipoSeleccionado.set(this.tipoFactura()?.idDocumento ?? null); this.tipoInicializado = true; } this.buscarDocumentos(true); }, error:()=>{this.tipos.set([]); this.buscarDocumentos(true);}}); }
   totalPaginas() { return Math.max(1, Math.ceil(this.totalDocumentos() / this.tamanoPagina())); }
-  buscarDocumentos(reiniciar = false) { if (reiniciar) this.pagina.set(1); let p = new HttpParams().set('fechaInicio',this.fechaInicio()).set('fechaFin',this.fechaFin()).set('pagina',String(this.pagina())).set('tamanoPagina',String(this.tamanoPagina())); if(this.serie()) p=p.set('serie',this.serie()); if(this.numero()) p=p.set('numero',this.numero()); if(this.centroCosto()) p=p.set('centroCosto',this.centroCosto()); this.tiposSeleccionados().forEach(x=>p=p.append('tiposDocumento',x)); this.http.get<any>(`${this.api}/ventas/documentos`,{params:p}).subscribe({next:r=>{this.documentos.set(r.items);this.totalDocumentos.set(r.total);this.pagina.set(r.pagina)},error:()=>{this.documentos.set([]);this.totalDocumentos.set(0)}}); }
+  buscarDocumentos(reiniciar = false) { if (reiniciar) this.pagina.set(1); let p = new HttpParams().set('fechaInicio',this.fechaInicio()).set('fechaFin',this.fechaFin()).set('pagina',String(this.pagina())).set('tamanoPagina',String(this.tamanoPagina())); if(this.serie()) p=p.set('serie',this.serie()); if(this.numero()) p=p.set('numero',this.numero()); if(this.clienteRuc()) p=p.set('clienteRuc',this.clienteRuc()); if(this.tipoSeleccionado() !== null) p=p.append('tiposDocumento',this.tipoSeleccionado()!); this.http.get<any>(`${this.api}/ventas/documentos`,{params:p}).subscribe({next:r=>{this.documentos.set(r.items);this.totalDocumentos.set(r.total);this.pagina.set(r.pagina)},error:()=>{this.documentos.set([]);this.totalDocumentos.set(0)}}); }
   cambiarPagina(delta: number) { const destino = Math.min(this.totalPaginas(), Math.max(1, this.pagina() + delta)); if (destino !== this.pagina()) { this.pagina.set(destino); this.buscarDocumentos(); } }
   cambiarTamano(event: Event) { this.tamanoPagina.set(Number((event.target as HTMLSelectElement).value)); this.buscarDocumentos(true); }
 
