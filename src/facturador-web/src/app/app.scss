@@ -108,3 +108,24 @@ main > header { justify-content:center; text-align:center; }.sidebar-foot { widt
 .loading-spinner { display:inline-block; flex:none; width:15px; height:15px; border:2px solid #a8d5c2; border-top-color:#16705a; border-radius:50%; animation:query-spin .7s linear infinite; vertical-align:middle; }
 @keyframes query-spin { to { transform:rotate(360deg); } }
 .query-error { margin:10px 0; color:#a3312d; font-size:.84rem; }
+
+/* La ventana principal no crece: el resultado administra ambos scrolls. */
+html, body { height:100%; max-height:100%; margin:0; overflow:hidden; }
+app-root { display:block; height:100dvh; max-height:100dvh; overflow:hidden; }
+.shell,.shell.sidebar-collapsed { height:100dvh; min-height:0; max-height:100dvh; overflow:hidden; }
+.shell > aside { min-height:0; max-height:100dvh; overflow-y:auto; }
+.shell > main { display:flex; flex-direction:column; height:100%; min-height:0; max-height:100dvh; overflow-y:auto; overflow-x:hidden; }
+.documents { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; max-height:100%; overflow:hidden; }
+.documents > .filter-head,.documents > .filters-fieldset,.documents > .filter-actions,.documents > .query-loading,.documents > .query-error,.documents > .pagination { flex-shrink:0; }
+.documents > .table-wrap { flex:1 1 auto; min-height:0; min-width:0; width:100%; max-width:100%; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#16705a #e7efeb; }
+.documents > .table-wrap > table { min-width:1460px; }
+.documents > .table-wrap thead th { position:sticky; top:0; z-index:5; background:#f0f7f3; }
+.documents > .pagination { margin-top:10px; }
+.documents > .table-wrap::-webkit-scrollbar { width:10px; height:10px; }
+.documents > .table-wrap::-webkit-scrollbar-thumb { background:#16705a; border:2px solid #e7efeb; border-radius:10px; }
+.documents > .table-wrap::-webkit-scrollbar-track { background:#e7efeb; }
+@media(max-width:760px) {
+  .shell,.shell.sidebar-collapsed { height:100dvh; max-height:100dvh; }
+  .shell > main { min-height:0; overflow-y:auto; }
+  .documents { flex:0 0 auto; height:calc(100dvh - 140px); min-height:320px; }
+}
